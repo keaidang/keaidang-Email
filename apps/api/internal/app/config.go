@@ -68,6 +68,9 @@ type Config struct {
 	ExternalIMAPOutlookClientSecret string
 	MailTranslateEnabled            bool
 	MailTranslateMaxChars           int
+	OpenRouterAPIKey                string
+	SiliconFlowAPIKey               string
+	SiliconFlowModel                string
 	NotificationSecretKey           string
 	DeliveryWebhookSecret           string
 	StatusWebhookURL                string
@@ -137,6 +140,9 @@ func LoadConfig() Config {
 		ExternalIMAPOutlookClientSecret: getenv("LANQIN_EXTERNAL_IMAP_OUTLOOK_CLIENT_SECRET", ""),
 		MailTranslateEnabled:            getenvBool("LANQIN_MAIL_TRANSLATE_ENABLED", true),
 		MailTranslateMaxChars:           getenvInt("LANQIN_MAIL_TRANSLATE_MAX_CHARS", 8000),
+		OpenRouterAPIKey:                getenv("LANQIN_OPENROUTER_API_KEY", ""),
+		SiliconFlowAPIKey:               getenv("LANQIN_SILICONFLOW_API_KEY", ""),
+		SiliconFlowModel:                getenv("LANQIN_SILICONFLOW_MODEL", "deepseek-ai/DeepSeek-V3"),
 		NotificationSecretKey:           getenv("LANQIN_NOTIFICATION_SECRET_KEY", ""),
 		DeliveryWebhookSecret:           getenv("LANQIN_DELIVERY_WEBHOOK_SECRET", ""),
 		StatusWebhookURL:                getenv("LANQIN_STATUS_WEBHOOK_URL", ""),

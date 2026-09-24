@@ -626,6 +626,12 @@ export const api = {
       body: JSON.stringify({ targetLanguage }),
       timeoutMs: MAIL_DELIVERY_TIMEOUT_MS,
     }),
+  translateMessageSubject: (id: string, targetLanguage: string) =>
+    request<MailTranslation>(`/api/mail/messages/${id}/translate-subject`, {
+      method: "POST",
+      body: JSON.stringify({ targetLanguage }),
+      timeoutMs: MAIL_DELIVERY_TIMEOUT_MS,
+    }),
   translateExternalMessage: (id: string, remoteId: string, targetLanguage: string) =>
     request<MailTranslation>(
       `/api/mail/external-accounts/${id}/messages/${encodeURIComponent(remoteId)}/translate`,
@@ -635,6 +641,77 @@ export const api = {
         timeoutMs: MAIL_DELIVERY_TIMEOUT_MS,
       }
     ),
+  translateExternalMessageSubject: (id: string, remoteId: string, targetLanguage: string) =>
+    request<MailTranslation>(
+      `/api/mail/external-accounts/${id}/messages/${encodeURIComponent(remoteId)}/translate-subject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ targetLanguage }),
+        timeoutMs: MAIL_DELIVERY_TIMEOUT_MS,
+      }
+    ),
+  translateMessageStream: (id: string, targetLanguage: string, onEvent: (event: string, data: any) => void) => {
+    const controller = new AbortController()
+    fetch(`/api/mail/messages/${id}/translate-stream`, {
+      method: "POST",
+      body: JSON.stringify({ targetLanguage }),
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+    }).then(async (res) => {
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      while (reader) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const eventMatch = line.match(/^event: (.+)$/m)
+          const dataMatch = line.match(/^data: (.+)$/m)
+          if (eventMatch && dataMatch) {
+            try {
+              onEvent(eventMatch[1], JSON.parse(dataMatch[1]))
+            } catch {}
+          }
+        }
+      }
+    })
+    return { abort: () => controller.abort() }
+  },
+  translateExternalMessageStream: (id: string, remoteId: string, targetLanguage: string, onEvent: (event: string, data: any) => void) => {
+    const controller = new AbortController()
+    fetch(`/api/mail/external-accounts/${id}/messages/${encodeURIComponent(remoteId)}/translate-stream`, {
+      method: "POST",
+      body: JSON.stringify({ targetLanguage }),
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+    }).then(async (res) => {
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      while (reader) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const eventMatch = line.match(/^event: (.+)$/m)
+          const dataMatch = line.match(/^data: (.+)$/m)
+          if (eventMatch && dataMatch) {
+            try {
+              onEvent(eventMatch[1], JSON.parse(dataMatch[1]))
+            } catch {}
+          }
+        }
+      }
+    })
+    return { abort: () => controller.abort() }
+  },
   send: (payload: SendPayload) =>
     request<MailMessage>("/api/mail/send", {
       method: "POST",

@@ -275,6 +275,7 @@ export type DNSCheckResult = {
 export type ListResponse<T> = { items: T[]; nextCursor?: string; totalCount?: number }
 export type MailTranslation = {
   translatedText: string
+  translatedSubject?: string
   translatedHtml?: string
   sourceLanguage?: string
   targetLanguage: string

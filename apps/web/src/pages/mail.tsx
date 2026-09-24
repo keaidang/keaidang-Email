@@ -4825,8 +4825,10 @@ function TranslatableMailBody({ message, language }: { message: MailMessage; lan
 
   const [translatedText, setTranslatedText] = React.useState("")
   const [translatedHtml, setTranslatedHtml] = React.useState("")
+  const [translatedSubject, setTranslatedSubject] = React.useState("")
   const [showTranslated, setShowTranslated] = React.useState(false)
   const [truncated, setTruncated] = React.useState(false)
+  const [translationPending, setTranslationPending] = React.useState(false)
   const { toast } = useToast()
   const targetLanguage = normalizeTranslationLanguage(language)
   const sourceText = React.useMemo(
@@ -4834,42 +4836,82 @@ function TranslatableMailBody({ message, language }: { message: MailMessage; lan
     [message.bodyHtml, message.bodyText, message.snippet]
   )
   const shouldShow = targetLanguage && shouldOfferMessageTranslation(sourceText, language)
+  const shouldShowSubject = targetLanguage && message.subject && shouldOfferMessageTranslation(message.subject, language)
   const translatedMessage = React.useMemo<MailMessage>(
     () => ({ ...message, bodyText: translatedText, bodyHtml: translatedHtml }),
     [message, translatedHtml, translatedText]
   )
-  const {
-    mutate: translate,
-    reset: resetTranslation,
-    isPending: translationPending,
-  } = useMutation({
-    mutationFn: () =>
-      message.externalAccountId
-        ? api.translateExternalMessage(message.externalAccountId, message.id, targetLanguage!)
-        : api.translateMessage(message.id, targetLanguage!),
-    onSuccess: (result) => {
-      setTranslatedText(result.translatedText)
-      setTranslatedHtml(result.translatedHtml || "")
-      setTruncated(result.truncated)
-      setShowTranslated(true)
-    },
-    onError: (error) =>
-      toast({
-        title: "翻译失败",
-        description: errorMessage(error),
-      }),
-  })
+
+  const translate = React.useCallback(() => {
+    if (!targetLanguage) return
+    setTranslationPending(true)
+    setTranslatedText("")
+    setTranslatedHtml("")
+    setTranslatedSubject("")
+    setShowTranslated(false)
+    setTruncated(false)
+
+    const handleEvent = (event: string, data: any) => {
+      if (event === "meta") {
+        setTruncated(data.truncated || false)
+      } else if (event === "subject") {
+        if (data.translatedSubject) {
+          setTranslatedSubject(data.translatedSubject)
+        }
+      } else if (event === "chunk") {
+        setTranslatedText((prev) => prev + data.text)
+      } else if (event === "done") {
+        setShowTranslated(true)
+        setTranslationPending(false)
+      } else if (event === "error") {
+        toast({ title: "翻译失败", description: data.message })
+        setTranslationPending(false)
+      }
+    }
+
+    if (message.externalAccountId) {
+      api.translateExternalMessageStream(message.externalAccountId, message.id, targetLanguage, handleEvent)
+    } else {
+      api.translateMessageStream(message.id, targetLanguage, handleEvent)
+    }
+  }, [message, targetLanguage, toast])
 
   React.useEffect(() => {
     setTranslatedText("")
     setTranslatedHtml("")
+    setTranslatedSubject("")
     setShowTranslated(false)
     setTruncated(false)
-    resetTranslation()
-  }, [language, message.id, resetTranslation])
+    setTranslationPending(false)
+  }, [language, message.id])
 
   return (
     <>
+      {(shouldShowSubject || translatedSubject) && (
+        <div className="mb-3 rounded-lg border bg-blue-50 p-3 text-sm dark:bg-blue-950/30">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-medium">
+              {showTranslated && translatedSubject ? (
+                <>
+                  <span className="text-muted-foreground">{uiText("标题译文：")}</span>
+                  <span>{translatedSubject}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-muted-foreground">{uiText("标题：")}</span>
+                  <span>{message.subject}</span>
+                  {translatedSubject && showTranslated && <span className="ml-2 text-xs text-emerald-600">{uiText("已翻译")}</span>}
+                </>
+              )}
+            </div>
+            {translatedSubject && showTranslated && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowTranslated((v) => !v)}>
+                {showTranslated ? uiText("显示原文标题") : uiText("显示译文标题")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       {(shouldShow || translatedText) && (
         <div className="mb-4 rounded-lg border bg-muted/30 p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
