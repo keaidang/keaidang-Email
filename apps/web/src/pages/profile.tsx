@@ -762,7 +762,7 @@ export function ProfilePage() {
       <SidebarHeader className={cn("border-b py-4", sidebarCollapsed ? "px-2" : "px-4")}>
         <AccountHeader
           collapsed={sidebarCollapsed}
-          name={user.displayName || selectedMailbox?.address || "LanQin"}
+          name={user.displayName || selectedMailbox?.address || keaidang Email}
           email={user.email || selectedMailbox?.address}
           darkMode={darkMode}
           onToggleTheme={() => setDarkMode((v) => !v)}

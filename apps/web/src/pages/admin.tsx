@@ -50,6 +50,7 @@ import {
   RegistrationInvite,
   SystemSettings,
 } from "@/lib/api"
+import { applyTheme, getInitialTheme } from "@/lib/theme"
 import { cn, decodeMimeHeader, formatBytes, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -126,6 +127,9 @@ export function AdminPage() {
   const me = useMe()
   const user = me.data?.user
   const [params, setParams] = useSearchParams()
+  const [darkMode, setDarkMode] = React.useState(getInitialTheme)
+  const themeMountedRef = React.useRef(false)
+  React.useEffect(() => { applyTheme(darkMode, themeMountedRef.current); themeMountedRef.current = true }, [darkMode])
   const canOverview = hasPermission(user, "admin.overview.view")
   const canUsersView = hasPermission(user, "admin.users.view")
   const canPermissionGroupsView = hasPermission(user, "admin.permission_groups.view")

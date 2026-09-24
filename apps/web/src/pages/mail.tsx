@@ -1829,7 +1829,7 @@ export function MailPage() {
       <SidebarHeader className={cn("border-b py-3", sidebarCollapsed ? "px-2" : "px-3")}>
         <AccountHeader
           collapsed={sidebarCollapsed}
-          name={me.data?.user.displayName || selectedMailbox?.address || "LanQin"}
+          name={me.data?.user.displayName || selectedMailbox?.address || "keaidang Email"}
           email={me.data?.user.email || selectedMailbox?.address}
           darkMode={darkMode}
           onToggleTheme={() => setDarkMode((value) => !value)}

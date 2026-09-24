@@ -861,7 +861,7 @@ func (a *App) migrateMessageThreads(ctx context.Context) error {
 	}
 	// Backfill deterministically from Message-ID, falling back to the row ID.
 	// mailbox_id may be NULL for unregistered mail and is not needed here.
-	rows, err = a.db.QueryContext(ctx, `SELECT id,message_id,thread_id FROM messages WHERE thread_id='' ORDER BY received_at,id`)
+	rows, err = a.db.QueryContext(ctx, `SELECT id,COALESCE(mailbox_id,''),message_id,thread_id FROM messages WHERE thread_id='' ORDER BY received_at,id`)
 	if err != nil {
 		return err
 	}

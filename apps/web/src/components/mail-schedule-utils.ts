@@ -109,7 +109,7 @@ function scheduleToIcs(schedule: ScheduleDraft) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//LanQin Email//Webmail//CN",
+    "PRODID:-//keaidang Email//Webmail//CN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

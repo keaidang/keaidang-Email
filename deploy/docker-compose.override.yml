@@ -1,0 +1,5 @@
+services:
+  lanqin-email:
+    volumes:
+      - ./certs:/certs:ro
+      - ./lanqin-nginx-default.conf:/etc/nginx/sites-available/default:ro
