@@ -18,9 +18,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/ianaindex"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/traditionalchinese"
 )
 
 type maildirMailbox struct {
@@ -972,9 +975,58 @@ func decodeMIMEHeader(value string) string {
 	}
 	decoded, err := decoder.DecodeHeader(collapsed)
 	if err != nil {
-		return value
+		// UTF-8 fallback: try to decode each encoded word manually.
+		return decodeMIMEHeaderFallback(collapsed)
 	}
 	return decoded
+}
+
+// decodeMIMEHeaderFallback attempts to decode RFC 2047 encoded words
+// as a best-effort UTF-8 fallback when the standard decoder fails.
+func decodeMIMEHeaderFallback(value string) string {
+	// Match =?charset?B|Q?data?= patterns.
+	const pattern = `=\?([^?]+)\?([BbQq])\?([^?]*)\?=`
+	re := regexp.MustCompile(pattern)
+	result := re.ReplaceAllStringFunc(value, func(match string) string {
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) != 4 {
+			return match
+		}
+		charset := strings.ToLower(strings.TrimSpace(submatches[1]))
+		encodingType := strings.ToUpper(submatches[2])
+		data := submatches[3]
+		// Replace _ with space in Q-encoding per RFC 2047.
+		data = strings.ReplaceAll(data, "_", " ")
+		var decoded string
+		switch encodingType {
+		case "B":
+			b, err := base64.StdEncoding.DecodeString(data)
+			if err != nil {
+				return match
+			}
+			decoded = string(b)
+		case "Q":
+			decoded = data
+		default:
+			return match
+		}
+		// Try the original charset first via charsetReader.
+		reader := strings.NewReader(decoded)
+		r, err := charsetReader(charset, reader)
+		if err == nil {
+			full, _ := io.ReadAll(r)
+			if len(full) > 0 {
+				return string(full)
+			}
+		}
+		// Last resort: try UTF-8 interpretation.
+		if utf8.Valid([]byte(decoded)) {
+			return decoded
+		}
+		// If decoded bytes are not valid UTF-8, return raw as last resort.
+		return match
+	})
+	return result
 }
 
 // adjacentEncodedWordSpaceRe matches whitespace between two adjacent RFC 2047
@@ -987,6 +1039,15 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 	charset = strings.ToLower(strings.TrimSpace(charset))
 	if charset == "utf-8" || charset == "us-ascii" {
 		return input, nil
+	}
+	// Explicitly handle Chinese charsets that may not be available
+	// via ianaindex.IANA (GB2312/GBK have no standalone variables,
+	// GB18030 is a superset covering both).
+	switch charset {
+	case "gb2312", "gb2312-80", "gb2312-2000", "gbk", "gbk2000", "gb18030", "gb18030-2000":
+		return simplifiedchinese.GB18030.NewDecoder().Reader(input), nil
+	case "big5", "big5-hkscs", "big5-hkcs":
+		return traditionalchinese.Big5.NewDecoder().Reader(input), nil
 	}
 	enc, err := ianaindex.IANA.Encoding(charset)
 	if err != nil {
